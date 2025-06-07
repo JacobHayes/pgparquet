@@ -1,0 +1,20 @@
+[package]
+name = "pgparquet"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "*"
+arrow = "*"
+bytes = "*"
+chrono = { version = "*", features = ["serde"] }
+clap = { version = "*", features = ["derive"] }
+futures = "*"
+hex = "*"
+object_store = { version = "*", features = ["gcp"] }
+parquet = { version = "*", features = ["async"] }
+postgres-types = { version = "*", features = ["derive", "with-chrono-0_4"] }
+tokio = { version = "*", features = ["full"] }
+tokio-postgres = "*"
+tracing = "*"
+tracing-subscriber = { version = "*", features = ["env-filter"] }
