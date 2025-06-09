@@ -8,7 +8,7 @@ anyhow = "*"
 arrow = "*"
 bytes = "*"
 chrono = { version = "*", features = ["serde"] }
-clap = { version = "*", features = ["derive"] }
+clap = { version = "*", features = ["derive", "env"] }
 futures = "*"
 hex = "*"
 object_store = { version = "*", features = ["gcp"] }

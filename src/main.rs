@@ -77,7 +77,7 @@ struct Args {
     path: String,
 
     /// PostgreSQL connection string
-    #[arg(short, long)]
+    #[arg(short, long, env)]
     database_url: String,
 
     /// Target table name in PostgreSQL (can include schema: schema.table)
