@@ -5,7 +5,7 @@ pub struct SchemaMapper;
 
 impl SchemaMapper {
     pub fn arrow_to_postgres_ddl(schema: &Schema, table_name: &str) -> Result<String> {
-        let mut ddl = format!("CREATE TABLE IF NOT EXISTS {} (\n", table_name);
+        let mut ddl = format!("CREATE TABLE IF NOT EXISTS {table_name} (\n");
 
         let mut columns = Vec::new();
         for field in schema.fields() {
@@ -13,7 +13,7 @@ impl SchemaMapper {
             let postgres_type = Self::arrow_to_postgres_type(field.data_type())?;
             let nullable = if field.is_nullable() { "" } else { " NOT NULL" };
 
-            columns.push(format!("  {} {}{}", column_name, postgres_type, nullable));
+            columns.push(format!("  {column_name} {postgres_type}{nullable}"));
         }
 
         ddl.push_str(&columns.join(",\n"));
@@ -84,7 +84,7 @@ impl SchemaMapper {
 
         // Ensure it starts with a letter or underscore
         if !sanitized.starts_with(|c: char| c.is_alphabetic() || c == '_') {
-            sanitized = format!("col_{}", sanitized);
+            sanitized = format!("col_{sanitized}");
         }
 
         // Convert to lowercase for PostgreSQL convention
