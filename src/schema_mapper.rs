@@ -8,7 +8,6 @@ impl SchemaMapper {
         let mut ddl = format!("CREATE TABLE IF NOT EXISTS {} (\n", table_name);
 
         let mut columns = Vec::new();
-
         for field in schema.fields() {
             let column_name = Self::sanitize_column_name(field.name());
             let postgres_type = Self::arrow_to_postgres_type(field.data_type())?;

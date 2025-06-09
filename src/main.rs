@@ -34,9 +34,7 @@ impl GcsSource {
             return Err(anyhow!("GCS URL must start with 'gs://'. Got: {}", url));
         }
 
-        let without_scheme = &url[5..]; // Remove "gs://"
-        let parts: Vec<&str> = without_scheme.splitn(2, '/').collect();
-
+        let parts: Vec<&str> = url[5..].splitn(2, '/').collect();
         if parts.len() != 2 {
             return Err(anyhow!(
                 "Invalid GCS URL format. Expected 'gs://bucket/path'. Got: {}",
@@ -72,25 +70,21 @@ impl GcsSource {
 }
 
 fn parse_table_name(table_arg: &str) -> (Option<String>, String) {
-    if let Some(dot_pos) = table_arg.rfind('.') {
-        let schema = table_arg[..dot_pos].to_string();
-        let table = table_arg[dot_pos + 1..].to_string();
-        (Some(schema), table)
-    } else {
-        (None, table_arg.to_string())
+    match table_arg.split_once('.') {
+        Some((schema, table)) => (Some(schema.to_string()), table.to_string()),
+        None => (None, table_arg.to_string()),
     }
 }
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// GCS path - end with '.parquet' for a single file or '/' for a folder
-    /// Examples: gs://bucket/file.parquet or gs://bucket/folder/
+    /// GCS path - end with '.parquet' for a single file (eg: gs://bucket/file.parquet) or '/' for a folder (eg: gs://bucket/folder/)
     #[arg(short, long)]
     path: String,
 
     /// PostgreSQL connection string
-    #[arg(short = 'd', long)]
+    #[arg(short, long)]
     database_url: String,
 
     /// Target table name in PostgreSQL (can include schema: schema.table)
@@ -114,7 +108,6 @@ struct Args {
 async fn main() -> Result<()> {
     // Initialize tracing with default INFO level if RUST_LOG is not set
     let env_filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
-
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::new(env_filter))
         .init();
@@ -131,14 +124,11 @@ async fn main() -> Result<()> {
         .with_bucket_name(gcs_source.bucket())
         .build()
         .context("Failed to create GCS client - make sure Google Cloud credentials are set up (try 'gcloud auth application-default login')")?;
-    info!("GCS client initialized successfully");
 
     info!("Connecting to PostgreSQL...");
     let (pg_client, connection) = tokio_postgres::connect(&args.database_url, NoTls)
         .await
         .context("Failed to connect to PostgreSQL")?;
-    info!("PostgreSQL connection established");
-
     // Spawn the connection task
     tokio::spawn(async move {
         if let Err(e) = connection.await {
@@ -156,10 +146,7 @@ async fn main() -> Result<()> {
         truncate: args.truncate,
     };
 
-    // Test GCS access
-    info!("Testing GCS access...");
     let gcs_client = Arc::new(gcs_client);
-
     process_data(gcs_client, pg_client, config).await?;
 
     info!("Data load completed successfully");
@@ -175,9 +162,6 @@ async fn process_data(
     let parquet_files = match &config.gcs_source {
         GcsSource::File { path, .. } => {
             info!("Processing single file: {}", path);
-            if !path.ends_with(".parquet") {
-                warn!("File does not have .parquet extension: {}", path);
-            }
             vec![path.clone()]
         }
         GcsSource::Prefix { prefix, .. } => {
@@ -185,7 +169,6 @@ async fn process_data(
             list_parquet_files(&gcs_client, prefix).await?
         }
     };
-
     if parquet_files.is_empty() {
         warn!("No parquet files found at {:?}", config.gcs_source);
         return Ok(());
