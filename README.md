@@ -1,16 +1,11 @@
 # pgparquet
 
-A quick and dirty CLI to read Parquet files from Google Cloud Storage (GCS) and
-stream into PostgreSQL.
+A quick and dirty CLI to read Parquet files from Google Cloud Storage (GCS) and stream into PostgreSQL. Other storage backends may be added in the future.
 
-The [`pg_parquet`](https://github.com/CrunchyData/pg_parquet) extension is
-great, but cannot be installed to all hosted PostgreSQL providers (eg: GCP).
-DuckDB can read from parquet and write to PostgreSQL, but it doesn't support
-Google Application Default Credentials (ADC) for authentication, which makes
-authentication more challenging.
+The [`pg_parquet`](https://github.com/CrunchyData/pg_parquet) extension is great, but cannot be installed on hosted PostgreSQL providers (eg: GCP). DuckDB can read from parquet and write to PostgreSQL, but it doesn't support Google Application Default Credentials (ADC) for authentication, which makes authentication more challenging.
 
 > [!NOTE]
-> This project is a prototype as I learn Rust - don't expect production quality code yet, but feel free to contribute!
+> This project is a prototype as I learn Rust - there may be bugs or inefficiencies. Feel free to contribute!
 
 ## Features
 
@@ -26,23 +21,7 @@ authentication more challenging.
 
 1. **Rust**: Install Rust from [rustup.rs](https://rustup.rs/)
 2. **PostgreSQL**: Access to a PostgreSQL database
-3. **Google Cloud Authentication**: Set up Application Default Credentials
-
-### Setting up Google Cloud Authentication
-
-You can authenticate in several ways:
-
-1. **Service Account Key** (recommended for production):
-   ```bash
-   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
-   ```
-
-2. **gcloud CLI** (for development):
-   ```bash
-   gcloud auth application-default login
-   ```
-
-3. **Compute Engine/Cloud Run**: Uses the instance's default service account automatically
+3. **Google Cloud Authentication**: Set up [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc) (automatic when running in GCP)
 
 ## Installation
 
@@ -55,23 +34,22 @@ cargo build --release
 
 ### Basic Usage
 
-Load all parquet files from a folder:
-```bash
-pgparquet \
-  --path gs://my-bucket/data/parquet-files/ \
-  --database-url "postgresql://user:password@localhost:5432/mydb" \
-  --table my_table \
-  --create-table \
-  --truncate
-```
-
-Load a single parquet file with schema qualification:
+Create a new table and load a single parquet file:
 ```bash
 pgparquet \
   --path gs://my-bucket/data/single-file.parquet \
   --database-url "postgresql://user:password@localhost:5432/mydb" \
   --table analytics.my_table \
   --create-table
+```
+
+Wipe a table and load all parquet files from a folder:
+```bash
+pgparquet \
+  --path gs://my-bucket/data/parquet-files/ \
+  --database-url "postgresql://user:password@localhost:5432/mydb" \
+  --table analytics.my_table \
+  --truncate
 ```
 
 ### Command Line Options
@@ -86,44 +64,11 @@ pgparquet \
 
 ### Environment Variables
 
-You can also use environment variables for sensitive information:
+You can also use environment variables for sensitive information or the log level:
 
 ```bash
 export DATABASE_URL="postgresql://user:password@localhost:5432/mydb"
 export RUST_LOG=info  # Set logging level
-```
-
-Then run:
-```bash
-pgparquet \
-  --path gs://my-bucket/data/parquet-files/ \
-  --database-url "$DATABASE_URL" \
-  --table my_table \
-  --create-table
-```
-
-### Examples
-
-#### Load all parquet files from a GCS folder into a new table
-
-```bash
-pgparquet \
-  --path gs://analytics-data/exports/user-events/ \
-  --database-url "postgresql://analytics:secret@db.example.com:5432/warehouse" \
-  --table analytics.user_events \
-  --create-table \
-  --truncate \
-  --batch-size 5000
-```
-
-#### Load a single file into an existing table
-
-```bash
-pgparquet \
-  --path gs://ml-datasets/processed/features/features_2024.parquet \
-  --database-url "$DATABASE_URL" \
-  --table ml_features \
-  --batch-size 2000
 ```
 
 ## Data Type Mapping
@@ -151,63 +96,12 @@ The tool automatically maps Arrow/Parquet data types to PostgreSQL types:
 
 - **COPY Command**: The tool uses PostgreSQL's COPY command which is significantly faster than INSERT statements for bulk loading
 - **Batch Size**: Larger batch sizes can improve performance but use more memory
-- **Buffer Size**: Data is buffered in 1MB chunks before being sent via COPY for optimal performance
+- **Buffer Size**: Data is buffered in 5MiB chunks before being sent via COPY
 - **Network**: Ensure good network connectivity between your application and both GCS and PostgreSQL
 - **PostgreSQL Configuration**: Consider adjusting PostgreSQL settings for bulk loading:
   - `shared_buffers`
   - `maintenance_work_mem`
   - `checkpoint_segments`
-
-## Logging
-
-The application uses structured logging. Set the `RUST_LOG` environment variable to control log levels:
-
-```bash
-export RUST_LOG=debug  # For detailed debugging
-export RUST_LOG=info   # For general information
-export RUST_LOG=warn   # For warnings only
-export RUST_LOG=error  # For errors only
-```
-
-## Error Handling
-
-The application will:
-- Stop processing if it encounters an authentication error
-- Skip files that cannot be read and continue with others
-- Provide detailed error messages for troubleshooting
-- Log progress information for monitoring
-
-## Security
-
-- Uses Google Application Default Credentials - no credentials stored in code
-- Supports PostgreSQL SSL connections through connection string parameters
-- Column names are sanitized to prevent SQL injection
-
-## Development
-
-### Building
-
-```bash
-cargo build
-```
-
-### Running Tests
-
-```bash
-cargo test
-```
-
-### Formatting
-
-```bash
-cargo fmt
-```
-
-### Linting
-
-```bash
-cargo clippy
-```
 
 ## Troubleshooting
 
@@ -218,7 +112,7 @@ cargo clippy
    gcloud auth application-default print-access-token
    ```
 
-2. Check your service account has the necessary permissions:
+2. Check your user or service account has the necessary permissions:
    - `storage.objects.get`
    - `storage.objects.list`
 
