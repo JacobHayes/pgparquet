@@ -38,6 +38,18 @@ impl PostgresWriter {
         // Store the schema
         self.schema = Some(schema.clone());
 
+        // Create table if requested
+        if self.config.create_table {
+            let ddl = SchemaMapper::arrow_to_postgres_ddl(&schema, &self.config.table_name())?;
+            debug!("Creating table with DDL: {}", ddl);
+
+            self.client
+                .execute(&ddl, &[])
+                .await
+                .context("Failed to create table")?;
+            info!("Created table: {}", self.config.table_name());
+        }
+
         // Truncate table if requested
         if self.config.truncate {
             let truncate_sql = format!(
@@ -49,18 +61,6 @@ impl PostgresWriter {
                 .await
                 .context("Failed to truncate table")?;
             info!("Truncated table: {}", self.config.table_name());
-        }
-
-        // Create table if requested
-        if self.config.create_table {
-            let ddl = SchemaMapper::arrow_to_postgres_ddl(&schema, &self.config.table_name())?;
-            debug!("Creating table with DDL: {}", ddl);
-
-            self.client
-                .execute(&ddl, &[])
-                .await
-                .context("Failed to create table")?;
-            info!("Created table: {}", self.config.table_name());
         }
 
         Ok(())
