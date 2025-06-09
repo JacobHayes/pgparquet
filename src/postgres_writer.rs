@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use arrow::array::*;
 use arrow::datatypes::{DataType, Schema};
 use arrow::record_batch::RecordBatch;
@@ -244,7 +244,7 @@ impl PostgresWriter {
                 let json_str = format!("{:?}", array.slice(row_idx, 1));
                 Ok(self.escape_copy_string(&json_str))
             }
-            _ => Err(anyhow::anyhow!(
+            _ => Err(anyhow!(
                 "Unsupported Arrow data type for COPY conversion: {:?}",
                 array.data_type()
             )),

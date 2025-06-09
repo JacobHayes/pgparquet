@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Parser;
 use futures::StreamExt;
 use object_store::gcp::GoogleCloudStorageBuilder;
@@ -31,17 +31,14 @@ impl GcsSource {
 
     fn parse_url(url: &str) -> Result<GcsSource> {
         if !url.starts_with("gs://") {
-            return Err(anyhow::anyhow!(
-                "GCS URL must start with 'gs://'. Got: {}",
-                url
-            ));
+            return Err(anyhow!("GCS URL must start with 'gs://'. Got: {}", url));
         }
 
         let without_scheme = &url[5..]; // Remove "gs://"
         let parts: Vec<&str> = without_scheme.splitn(2, '/').collect();
 
         if parts.len() != 2 {
-            return Err(anyhow::anyhow!(
+            return Err(anyhow!(
                 "Invalid GCS URL format. Expected 'gs://bucket/path'. Got: {}",
                 url
             ));
@@ -51,10 +48,7 @@ impl GcsSource {
         let path_or_prefix = parts[1].to_string();
 
         if bucket.is_empty() {
-            return Err(anyhow::anyhow!(
-                "Bucket name cannot be empty in GCS URL: {}",
-                url
-            ));
+            return Err(anyhow!("Bucket name cannot be empty in GCS URL: {}", url));
         }
 
         // Determine if this is a file or prefix based on the URL pattern
@@ -69,7 +63,7 @@ impl GcsSource {
                 prefix: path_or_prefix,
             })
         } else {
-            return Err(anyhow::anyhow!(
+            return Err(anyhow!(
                 "GCS URL must end with '.parquet' for files or '/' for prefixes. Got: {}",
                 url
             ));

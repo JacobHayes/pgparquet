@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use arrow::datatypes::{DataType, Schema};
 
 pub struct SchemaMapper;
@@ -66,10 +66,7 @@ impl SchemaMapper {
             DataType::LargeList(_) => Ok("JSONB"),
             DataType::Struct(_) => Ok("JSONB"),
             DataType::Map(_, _) => Ok("JSONB"),
-            _ => Err(anyhow::anyhow!(
-                "Unsupported Arrow data type: {:?}",
-                data_type
-            )),
+            _ => Err(anyhow!("Unsupported Arrow data type: {:?}", data_type)),
         }
     }
 
