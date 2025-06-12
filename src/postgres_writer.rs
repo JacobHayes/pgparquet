@@ -3,6 +3,7 @@ use arrow::array::*;
 use arrow::datatypes::{DataType, Schema};
 use arrow::record_batch::RecordBatch;
 use futures::SinkExt;
+use std::mem::take;
 use std::sync::Arc;
 use tokio_postgres::Client as PgClient;
 use tracing::{debug, info};
@@ -120,8 +121,9 @@ impl PostgresWriter {
 
         let mut pinned_sink = std::pin::pin!(copy_sink);
 
+        let buf = take(&mut self.copy_data);
         pinned_sink
-            .send(bytes::Bytes::from(self.copy_data.clone()))
+            .send(bytes::Bytes::from(buf))
             .await
             .context("Failed to send data to COPY")?;
 
@@ -131,7 +133,6 @@ impl PostgresWriter {
             .context("Failed to complete COPY operation")?;
 
         debug!("Successfully flushed COPY data");
-        self.copy_data.clear();
         Ok(())
     }
 
