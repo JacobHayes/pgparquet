@@ -86,9 +86,8 @@ impl PostgresWriter {
             num_rows, self.rows_written
         );
 
-        // If we have enough data, flush it
-        if self.copy_data.len() > 1024 * 1024 {
-            // 1MB buffer
+        // Flush once we have 5MiB+ of data
+        if self.copy_data.len() > 1024 * 1024 * 5 {
             self.flush_copy_data().await?;
         }
 
