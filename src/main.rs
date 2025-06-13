@@ -69,13 +69,6 @@ impl GcsSource {
     }
 }
 
-fn parse_table_name(table_arg: &str) -> (Option<String>, String) {
-    match table_arg.split_once('.') {
-        Some((schema, table)) => (Some(schema.to_string()), table.to_string()),
-        None => (None, table_arg.to_string()),
-    }
-}
-
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -136,13 +129,11 @@ async fn main() -> Result<()> {
         }
     });
 
-    let (schema, table) = parse_table_name(&args.table);
     let config = Config {
-        gcs_source,
-        table,
-        schema,
         batch_size: args.batch_size,
         create_table: args.create_table,
+        gcs_source,
+        table: args.table,
         truncate: args.truncate,
     };
 

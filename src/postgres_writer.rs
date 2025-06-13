@@ -30,37 +30,31 @@ impl PostgresWriter {
     }
 
     pub async fn initialize_schema(&mut self, schema: Arc<Schema>) -> Result<()> {
-        info!(
-            "Initializing schema for table: {}",
-            self.config.table_name()
-        );
+        info!("Initializing schema for table: {}", self.config.table);
 
         // Store the schema
         self.schema = Some(schema.clone());
 
         // Create table if requested
         if self.config.create_table {
-            let ddl = SchemaMapper::arrow_to_postgres_ddl(&schema, &self.config.table_name())?;
+            let ddl = SchemaMapper::arrow_to_postgres_ddl(&schema, &self.config.table)?;
             debug!("Creating table with DDL: {}", ddl);
 
             self.client
                 .execute(&ddl, &[])
                 .await
                 .context("Failed to create table")?;
-            info!("Created table: {}", self.config.table_name());
+            info!("Created table: {}", self.config.table);
         }
 
         // Truncate table if requested
         if self.config.truncate {
-            let truncate_sql = format!(
-                "TRUNCATE TABLE {} RESTART IDENTITY",
-                self.config.table_name()
-            );
+            let truncate_sql = format!("TRUNCATE TABLE {} RESTART IDENTITY", self.config.table);
             self.client
                 .execute(&truncate_sql, &[])
                 .await
                 .context("Failed to truncate table")?;
-            info!("Truncated table: {}", self.config.table_name());
+            info!("Truncated table: {}", self.config.table);
         }
 
         Ok(())
@@ -118,7 +112,7 @@ impl PostgresWriter {
         }
 
         let schema = self.schema.as_ref().context("Schema not initialized")?;
-        let copy_sql = SchemaMapper::create_copy_statement(schema, &self.config.table_name());
+        let copy_sql = SchemaMapper::create_copy_statement(schema, &self.config.table);
 
         debug!("Flushing {} bytes of COPY data", self.copy_data.len());
 
