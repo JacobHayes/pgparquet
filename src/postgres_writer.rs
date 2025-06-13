@@ -11,11 +11,12 @@ use crate::config::Config;
 use crate::schema_mapper::SchemaMapper;
 
 pub struct PostgresWriter {
+    pub rows_written: u64,
+
     client: PgClient,
     config: Config,
-    schema: Option<Arc<Schema>>,
-    rows_written: u64,
     copy_data: String,
+    schema: Option<Arc<Schema>>,
 }
 
 impl PostgresWriter {
@@ -30,7 +31,7 @@ impl PostgresWriter {
     }
 
     pub async fn initialize_schema(&mut self, schema: Arc<Schema>) -> Result<()> {
-        info!("Initializing schema for table: {}", self.config.table);
+        debug!("Initializing schema for table: {}", self.config.table);
 
         // Store the schema
         self.schema = Some(schema.clone());
@@ -99,10 +100,6 @@ impl PostgresWriter {
         if !self.copy_data.is_empty() {
             self.flush_copy_data().await?;
         }
-        info!(
-            "Data load completed. Total rows written: {}",
-            self.rows_written
-        );
         Ok(())
     }
 

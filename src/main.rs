@@ -6,7 +6,7 @@ use object_store::{ObjectStore, path::Path};
 use parquet::arrow::async_reader::ParquetRecordBatchStreamBuilder;
 use std::sync::Arc;
 use tokio_postgres::{Client as PgClient, NoTls};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 mod config;
 mod postgres_writer;
@@ -106,19 +106,15 @@ async fn main() -> Result<()> {
         .init();
 
     let args = Args::parse();
+
+    debug!("Initializing GCS client...");
     let gcs_source = GcsSource::parse_url(&args.path)?;
-
-    info!("Starting data load from GCS to PostgreSQL");
-    info!("Data Source: {:?}", gcs_source);
-    info!("Database: {}, Table: {}", args.database_url, args.table);
-
-    info!("Initializing GCS client...");
     let gcs_client = GoogleCloudStorageBuilder::from_env()
         .with_bucket_name(gcs_source.bucket())
         .build()
         .context("Failed to create GCS client - make sure Google Cloud credentials are set up (try 'gcloud auth application-default login')")?;
 
-    info!("Connecting to PostgreSQL...");
+    debug!("Connecting to PostgreSQL...");
     let (pg_client, connection) = tokio_postgres::connect(&args.database_url, NoTls)
         .await
         .context("Failed to connect to PostgreSQL")?;
@@ -139,8 +135,6 @@ async fn main() -> Result<()> {
 
     let gcs_client = Arc::new(gcs_client);
     process_data(gcs_client, pg_client, config).await?;
-
-    info!("Data load completed successfully");
     Ok(())
 }
 
@@ -149,28 +143,18 @@ async fn process_data(
     pg_client: PgClient,
     config: Config,
 ) -> Result<()> {
-    // Get list of parquet files to process
     let parquet_files = match &config.gcs_source {
-        GcsSource::File { path, .. } => {
-            info!("Processing single file: {}", path);
-            vec![path.clone()]
-        }
-        GcsSource::Prefix { prefix, .. } => {
-            info!("Listing parquet files with prefix: {}", prefix);
-            list_parquet_files(&gcs_client, prefix).await?
-        }
+        GcsSource::File { path, .. } => vec![path.clone()],
+        GcsSource::Prefix { prefix, .. } => list_parquet_files(&gcs_client, prefix).await?,
     };
     if parquet_files.is_empty() {
         warn!("No parquet files found at {:?}", config.gcs_source);
         return Ok(());
-    }
+    };
 
-    info!("Found {} parquet files to process", parquet_files.len());
-
+    info!("Importing data into table: {}", config.table);
     let mut postgres_writer = PostgresWriter::new(pg_client, config.clone()).await?;
     let mut schema_initialized = false;
-
-    // Process each parquet file
     for file_path in parquet_files {
         info!("Processing file: {}", file_path);
 
@@ -180,7 +164,6 @@ async fn process_data(
             .await
             .context("Failed to get object from GCS")?;
 
-        // Create parquet reader from the object stream
         let bytes = object
             .bytes()
             .await
@@ -205,17 +188,18 @@ async fn process_data(
             .build()
             .context("Failed to build parquet stream")?;
 
-        // Stream and process record batches
         tokio::pin!(stream);
         while let Some(batch_result) = stream.next().await {
             let batch = batch_result.context("Failed to read record batch")?;
             postgres_writer.write_batch(&batch).await?;
         }
-
-        info!("Completed processing file: {}", file_path);
     }
 
     postgres_writer.finalize().await?;
+    info!(
+        "Data load completed. Total rows written: {}",
+        postgres_writer.rows_written
+    );
     Ok(())
 }
 
@@ -236,10 +220,10 @@ async fn list_parquet_files(
         total_objects += 1;
 
         if path.ends_with(".parquet") {
-            info!("Found parquet file: {}", path);
+            debug!("Found parquet file: {}", path);
             files.push(path.to_string());
         } else {
-            info!("Skipping non-parquet file: {}", path);
+            debug!("Skipping non-parquet file: {}", path);
         }
     }
 
