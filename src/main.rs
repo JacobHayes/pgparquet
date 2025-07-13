@@ -1,9 +1,11 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Parser;
 use futures::StreamExt;
+use native_tls::TlsConnector;
 use object_store::gcp::GoogleCloudStorageBuilder;
 use object_store::{ObjectStore, path::Path};
 use parquet::arrow::async_reader::ParquetRecordBatchStreamBuilder;
+use postgres_native_tls::MakeTlsConnector;
 use std::sync::Arc;
 use tokio_postgres::{Client as PgClient, NoTls};
 use tracing::{debug, error, info, warn};
@@ -95,6 +97,14 @@ struct Args {
     /// Whether to truncate the table before loading
     #[arg(long)]
     truncate: bool,
+
+    /// Enable TLS for database connection
+    #[arg(long)]
+    tls: bool,
+
+    /// Enable TLS for database connection without certificate validation
+    #[arg(long)]
+    tls_insecure: bool,
 }
 
 #[tokio::main]
@@ -115,15 +125,40 @@ async fn main() -> Result<()> {
         .context("Failed to create GCS client - make sure Google Cloud credentials are set up (try 'gcloud auth application-default login')")?;
 
     debug!("Connecting to PostgreSQL...");
-    let (pg_client, connection) = tokio_postgres::connect(&args.database_url, NoTls)
-        .await
-        .context("Failed to connect to PostgreSQL")?;
-    // Spawn the connection task
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            error!("PostgreSQL connection error: {}", e);
+    let pg_client = if args.tls || args.tls_insecure {
+        let mut builder = TlsConnector::builder();
+        if args.tls_insecure {
+            builder.danger_accept_invalid_certs(true);
+            builder.danger_accept_invalid_hostnames(true);
         }
-    });
+        let connector =
+            MakeTlsConnector::new(builder.build().context("Failed to build TLS connector")?);
+        let (client, connection) = tokio_postgres::connect(&args.database_url, connector)
+            .await
+            .context("Failed to connect to PostgreSQL with TLS")?;
+
+        // Spawn the TLS connection task
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                error!("PostgreSQL TLS connection error: {}", e);
+            }
+        });
+
+        client
+    } else {
+        let (client, connection) = tokio_postgres::connect(&args.database_url, NoTls)
+            .await
+            .context("Failed to connect to PostgreSQL")?;
+
+        // Spawn the connection task
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                error!("PostgreSQL connection error: {}", e);
+            }
+        });
+
+        client
+    };
 
     let config = Config {
         batch_size: args.batch_size,

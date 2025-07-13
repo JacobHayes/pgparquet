@@ -11,8 +11,10 @@ chrono = { version = "*", features = ["serde"] }
 clap = { version = "*", features = ["derive", "env"] }
 futures = "*"
 hex = "*"
+native-tls = "*"
 object_store = { version = "*", features = ["gcp"] }
 parquet = { version = "*", features = ["async"] }
+postgres-native-tls = "*"
 postgres-types = { version = "*", features = ["derive", "with-chrono-0_4"] }
 tokio = { version = "*", features = ["full"] }
 tokio-postgres = "*"
