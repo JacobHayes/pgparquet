@@ -12,7 +12,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0"
-arrow = "55.2"
+arrow = "56.0"
 bytes = "1.8"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5", features = ["derive", "env"] }
@@ -20,7 +20,7 @@ futures = "0.3"
 hex = "0.4"
 native-tls = "0.2"
 object_store = { version = "0.12", features = ["gcp"] }
-parquet = { version = "55.2", features = ["async"] }
+parquet = { version = "56.0", features = ["async"] }
 postgres-native-tls = "0.5"
 postgres-types = { version = "0.2", features = ["derive", "with-chrono-0_4"] }
 tokio = { version = "1.47", features = ["full"] }
