@@ -63,10 +63,10 @@ impl GcsSource {
                 prefix: path_or_prefix,
             })
         } else {
-            return Err(anyhow!(
+            Err(anyhow!(
                 "GCS URL must end with '.parquet' for files or '/' for prefixes. Got: {}",
                 url
-            ));
+            ))
         }
     }
 }
