@@ -23,7 +23,7 @@ object_store = { version = "0.12", features = ["gcp"] }
 parquet = { version = "56.0", features = ["async"] }
 postgres-native-tls = "0.5"
 postgres-types = { version = "0.2", features = ["derive", "with-chrono-0_4"] }
-tokio = { version = "1.47", features = ["full"] }
+tokio = { version = "1.48", features = ["full"] }
 tokio-postgres = "0.7"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
