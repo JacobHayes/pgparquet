@@ -3,7 +3,7 @@ use clap::Parser;
 use futures::StreamExt;
 use native_tls::TlsConnector;
 use object_store::gcp::GoogleCloudStorageBuilder;
-use object_store::{ObjectStore, path::Path};
+use object_store::{ObjectStore, ObjectStoreExt, path::Path};
 use parquet::arrow::async_reader::ParquetRecordBatchStreamBuilder;
 use postgres_native_tls::MakeTlsConnector;
 use std::sync::Arc;
